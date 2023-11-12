@@ -47,25 +47,48 @@ class EntityA(Entity):
         super().__init__(sim)
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
-        # Initialize anything you need here
+        EntityA.NextSeqNum = 0 # initial sequence number 
+        EntityA.SendBase = 0 # initial sequence number
+        EntityA.pktsNotYetAckd = False
+
 
     def output(self, message):
         """Called when layer5 wants to introduce new data into the stream"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
-
+        #create TCP segment wtih seq number NextSeqNum
         pkt = packet.Packet()
         pkt.payload = message
+        pkt.seqnum = self.NextSeqNum
+        # if(timer not running) start timer
+        self.starttimer
+        
+        
+        #pass segment to Layer 3
+        # NextSeqNum += length(data)
+
+
+        
         self.tolayer3(pkt)
 
     def input(self, packet):
         """Called when the network has a packet for this entity"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
+        # ack recieved with ack value of y
+        if(packet.acknum > self.SendBase):
+            self.SendBase = packet.acknum
+
+
+        # if( there are currently any not-yet-acknowledged segments) start timer
+        
 
     def timerinterrupt(self):
         """called when your timer has expired"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
+        #timer timeout
+        #retransmit not yet acked segment with smallest sequence number
+        #start timer
 
     # From here down are functions you may call that interact with the simulator.
     # You should not need to modify these functions.
