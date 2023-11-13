@@ -57,10 +57,14 @@ class EntityA(Entity):
         """Called when layer5 wants to introduce new data into the stream"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         
-        #create TCP segment wtih seq number NextSeqNum
+        #create TCP segment
         pkt = packet.Packet()
-        pkt.payload = message
+        pkt.payload = message 
         pkt.seqnum = self.NextSeqNum
+        pkt.acknum = self.NextSeqNum + len(message) 
+        pkt.checksum = ord("Z") - ord(message[0]) # the checksum works by getting the sum of the ASCII values
+        # the ascii on the other side should add up to ascii Z or 90
+
         # if(timer not running) start timer
         self.starttimer
         # save packet if it needs to be re-sent
@@ -80,6 +84,7 @@ class EntityA(Entity):
         # ack recieved with ack value of y
         if(packet.acknum > self.SendBase):
             self.SendBase = packet.acknum
+
             
 
         # if( there are currently any not-yet-acknowledged segments) start timer
@@ -142,15 +147,28 @@ class EntityB(Entity):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
         # check checksum
-        # if checksum passes then update the seq recieved else call last ack packet
-        self.seqRecieved = packet.seqnum
-        # make the acknowledgement packet
-        packet.acknum = packet.seqnum + len(packet.payload)
+        if(packet.checksum + ord(packet.message[0]) == ord("Z")):
+            # checksum passed, update seqRecieved
+            # if  this is the correct next packet
+            if(self.lastAck == packet.seqnum):
 
-        # send the ack back to EntityA
+                self.seqRecieved = packet.seqnum
+            
+                # make the acknowledgement packet
+                packet.acknum = packet.seqnum + len(packet.payload)
+                # give the correct payload to the application
+                self.tolayer5(packet.payload)
+        # that last packet was corrupted
+        # I need it again
+        else:
+
+        
+        
+
+        # send the ack/nack back to EntityA
         self.tolayer3(packet)
         
-        self.tolayer5(packet.payload)
+        
 
     # called when your timer has expired
     def timerinterrupt(self):
