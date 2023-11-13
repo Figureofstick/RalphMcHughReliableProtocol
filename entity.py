@@ -51,25 +51,27 @@ class EntityA(Entity):
         EntityA.SendBase = 0 # initial sequence number
         EntityA.pktsNotYetAckd = False
 
+        EntityA.pktToAck = packet.Packet()
 
     def output(self, message):
         """Called when layer5 wants to introduce new data into the stream"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        # TODO add some code
+        
         #create TCP segment wtih seq number NextSeqNum
         pkt = packet.Packet()
         pkt.payload = message
         pkt.seqnum = self.NextSeqNum
         # if(timer not running) start timer
         self.starttimer
-        
-        
-        #pass segment to Layer 3
-        # NextSeqNum += length(data)
-
-
-        
+        # save packet if it needs to be re-sent
+        self.pktToAck = pkt
+        # pass segment to Layer 3
         self.tolayer3(pkt)
+        self.NextSeqNum += message.length 
+
+        self.pktsNotYetAckd = True
+        
+        
 
     def input(self, packet):
         """Called when the network has a packet for this entity"""
@@ -78,7 +80,7 @@ class EntityA(Entity):
         # ack recieved with ack value of y
         if(packet.acknum > self.SendBase):
             self.SendBase = packet.acknum
-
+            
 
         # if( there are currently any not-yet-acknowledged segments) start timer
         
@@ -88,6 +90,9 @@ class EntityA(Entity):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         #timer timeout
         #retransmit not yet acked segment with smallest sequence number
+        self.starttimer
+        self.tolayer3(self.pktToAck)
+        self.pktsNotYetAckd = False
         #start timer
 
     # From here down are functions you may call that interact with the simulator.
@@ -120,7 +125,8 @@ class EntityB(Entity):
     def __init__(self, sim):
         super().__init__(sim)
 
-        # Initialize anything you need here
+        EntityB.seqRecieved # the highest sequence correctly recieved 
+        EntityB.lastAck # the last packet correctly acknowledged
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
     # Called when layer5 wants to introduce new data into the stream
@@ -135,6 +141,15 @@ class EntityB(Entity):
     def input(self, packet):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
+        # check checksum
+        # if checksum passes then update the seq recieved else call last ack packet
+        self.seqRecieved = packet.seqnum
+        # make the acknowledgement packet
+        packet.acknum = packet.seqnum + packet.message.length
+
+        # send the ack back to EntityA
+        self.tolayer3(packet)
+        
         self.tolayer5(packet.payload)
 
     # called when your timer has expired
