@@ -155,13 +155,13 @@ class EntityB(Entity):
                 self.seqRecieved = packet.seqnum
             
                 # make the acknowledgement packet
-                packet.acknum = packet.seqnum + len(packet.payload)
+                
                 # give the correct payload to the application
                 self.tolayer5(packet.payload)
         # that last packet was corrupted
         # I need it again
         else:
-
+            packet.acknum = -(packet.seqnum + len(packet.payload))
         
         
 
