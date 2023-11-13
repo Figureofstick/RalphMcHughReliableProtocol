@@ -67,7 +67,7 @@ class EntityA(Entity):
         self.pktToAck = pkt
         # pass segment to Layer 3
         self.tolayer3(pkt)
-        self.NextSeqNum += message.length 
+        self.NextSeqNum += len(message) 
 
         self.pktsNotYetAckd = True
         
@@ -125,8 +125,8 @@ class EntityB(Entity):
     def __init__(self, sim):
         super().__init__(sim)
 
-        EntityB.seqRecieved # the highest sequence correctly recieved 
-        EntityB.lastAck # the last packet correctly acknowledged
+        EntityB.seqRecieved = 0 # the highest sequence correctly recieved 
+        EntityB.lastAck = 0 # the last packet correctly acknowledged
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
     # Called when layer5 wants to introduce new data into the stream
@@ -145,7 +145,7 @@ class EntityB(Entity):
         # if checksum passes then update the seq recieved else call last ack packet
         self.seqRecieved = packet.seqnum
         # make the acknowledgement packet
-        packet.acknum = packet.seqnum + packet.message.length
+        packet.acknum = packet.seqnum + len(packet.message)
 
         # send the ack back to EntityA
         self.tolayer3(packet)
