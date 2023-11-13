@@ -145,7 +145,7 @@ class EntityB(Entity):
         # if checksum passes then update the seq recieved else call last ack packet
         self.seqRecieved = packet.seqnum
         # make the acknowledgement packet
-        packet.acknum = packet.seqnum + len(packet.message)
+        packet.acknum = packet.seqnum + len(packet.payload)
 
         # send the ack back to EntityA
         self.tolayer3(packet)
