@@ -47,11 +47,13 @@ class EntityA(Entity):
         super().__init__(sim)
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
-        EntityA.NextSeqNum = 0 # initial sequence number 
-        EntityA.SendBase = 0 # initial sequence number
+        EntityA.NextSeqNum = 0 # seq number iterable 
+        EntityA.SendBase = 0 # base of acknowledged packets
         EntityA.pktsNotYetAckd = False
 
-        EntityA.pktToAck = packet.Packet()
+        EntityA.backupPkt = list() # a "stream" of the packets 
+        EntityA.backupPktIndex = 0 # this is essentially the sendbase value but instead of increasing by 16
+        # it increases by one each time
 
     def output(self, message):
         """Called when layer5 wants to introduce new data into the stream"""
@@ -61,19 +63,18 @@ class EntityA(Entity):
         pkt = packet.Packet()
         pkt.payload = message 
         pkt.seqnum = self.NextSeqNum
-        pkt.acknum = self.NextSeqNum + len(message) 
         pkt.checksum = ord("Z") - ord(message[0]) # the checksum works by getting the sum of the ASCII values
         # the ascii on the other side should add up to ascii Z or 90
 
+        self.NextSeqNum += len(message) # iterate the seq num
         # if(timer not running) start timer
         self.starttimer
         # save packet if it needs to be re-sent
-        self.pktToAck = pkt
+        self.backupPkt.append(pkt)
         # pass segment to Layer 3
         self.tolayer3(pkt)
-        self.NextSeqNum += len(message) 
 
-        self.pktsNotYetAckd = True
+        
         
         
 
@@ -81,13 +82,19 @@ class EntityA(Entity):
         """Called when the network has a packet for this entity"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
-        # ack recieved with ack value of y
-        if(packet.acknum > self.SendBase):
-            self.SendBase = packet.acknum
+        # correct next ack is recieved 
+        if(packet.acknum == self.SendBase):
+            self.SendBase += len(packet.payload) # iterate the sendbase 
+            self.backupPktIndex += 1 # iterate the backupPktIndex
+            self.stoptimer # stop the timer
+        # packet was corrupted, try sending it again
+        if(packet.acknum < 0):
+            self.starttimer
+            self.tolayer3(self.backupPkt[self.backupPktIndex]) # call the last backupPkt
 
-            
 
-        # if( there are currently any not-yet-acknowledged segments) start timer
+        
+
         
 
     def timerinterrupt(self):
@@ -96,8 +103,8 @@ class EntityA(Entity):
         #timer timeout
         #retransmit not yet acked segment with smallest sequence number
         self.starttimer
-        self.tolayer3(self.pktToAck)
-        self.pktsNotYetAckd = False
+        self.tolayer3(self.backupPkt[self.backupPktIndex]) # call the last backupPkt
+        # self.pktsNotYetAckd = False
         #start timer
 
     # From here down are functions you may call that interact with the simulator.
@@ -130,7 +137,7 @@ class EntityB(Entity):
     def __init__(self, sim):
         super().__init__(sim)
 
-        EntityB.seqRecieved = 0 # the highest sequence correctly recieved 
+         
         EntityB.lastAck = 0 # the last packet correctly acknowledged
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
@@ -146,27 +153,31 @@ class EntityB(Entity):
     def input(self, packet):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
-        # check checksum
-        if(packet.checksum + ord(packet.message[0]) == ord("Z")):
-            # checksum passed, update seqRecieved
-            # if  this is the correct next packet
+        # check checksum, does the message and the checksum add up to capital Z?
+        if(packet.checksum + ord(packet.payload[0]) == ord("Z")):
+            # checksum passed
+            # if this is the correct next packet
+            # otherwise I will do nothing
             if(self.lastAck == packet.seqnum):
 
-                self.seqRecieved = packet.seqnum
-            
-                # make the acknowledgement packet
                 
-                # give the correct payload to the application
-                self.tolayer5(packet.payload)
+                packet.acknum = packet.seqnum + len(packet.payload) # make the acknowledgement packet
+                self.lastAck = packet.acknum # update the last correctly acknowledged packet
+                self.tolayer5(packet.payload) # give the correct payload to the application
+
+                # send the ack back to EntityA
+                self.tolayer3(packet)
+            
         # that last packet was corrupted
         # I need it again
         else:
-            packet.acknum = -(packet.seqnum + len(packet.payload))
+            # negative implies Nack
+            packet.acknum = -1
+            self.tolayer3(packet)
         
         
 
-        # send the ack/nack back to EntityA
-        self.tolayer3(packet)
+        
         
         
 
