@@ -180,7 +180,7 @@ class EntityB(Entity):
             if((self.lastAck == packet.seqnum) ):
 
                 
-                self.stoptimer()
+                
                 self.lastAck = packet.acknum # update the last correctly acknowledged packet
                 self.lastPktRcvd = packet
                 
