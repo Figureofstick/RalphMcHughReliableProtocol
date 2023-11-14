@@ -184,7 +184,7 @@ class EntityB(Entity):
                 self.lastAck = packet.acknum # update the last correctly acknowledged packet
                 self.lastPktRcvd = packet
                 
-                self.starttimer(10)
+                
                 self.tolayer5(packet.payload) # give the correct payload to the application
 
                 # send the ack back to EntityA
@@ -206,8 +206,7 @@ class EntityB(Entity):
     # called when your timer has expired
     def timerinterrupt(self):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        self.starttimer(10)
-        self.tolayer3(self.lastPktRcvd)
+        pass
 
     # From here down are functions you may call that interact with the simulator.
     # You should not need to modify these functions.
