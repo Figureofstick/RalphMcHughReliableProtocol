@@ -88,7 +88,7 @@ class EntityA(Entity):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
         # correct next ack is recieved 
-        if((packet.acknum == self.SendBase + len(packet.payload)) == (packet.checksum == packet.acknum + packet.seqnum + ord(packet.payload[0]))  ):
+        if((packet.acknum == (self.SendBase + len(packet.payload))) == (packet.checksum == (packet.acknum + packet.seqnum + ord(packet.payload[0])))):
             self.stoptimer()
             self.pktInAir = False
             self.SendBase += len(packet.payload) # iterate the sendbase 
@@ -100,7 +100,7 @@ class EntityA(Entity):
         
         # packet was corrupted, try sending it again
         else:
-            print("\r\nCORRUPT\r\n")
+            
             self.starttimer(10)
             
             self.tolayer3(self.lastPktSent) # call the last backupPkt
@@ -166,8 +166,8 @@ class EntityB(Entity):
     # Called when the network has a packet for this entity
     def input(self, packet):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        # TODO add some code
-        # check checksum, does the message and the checksum add up to capital Z?
+        
+        # check checksum
         if(packet.seqnum + ord(packet.payload[0]) + packet.acknum == packet.checksum):
             # checksum passed
             # if this is the correct next packet
