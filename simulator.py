@@ -283,6 +283,11 @@ def main():
     )
     parser.add_argument(
         "--corruptprob",
+        default=0.0,
+        type=float,
+        help="corruption probability (0.0 - 1.0)",
+    )
+    parser.add_argument(
         "--lossprob", default=0.0, type=float, help="packet loss probaility (0.0 - 1.0)"
     )
     parser.add_argument("--lambda", default=1, type=float, help="packet arrival rate")

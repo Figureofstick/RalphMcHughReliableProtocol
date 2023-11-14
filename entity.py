@@ -47,14 +47,14 @@ class EntityA(Entity):
         super().__init__(sim)
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
-
         EntityA.NextSeqNum = 0 # seq number iterable 
         EntityA.SendBase = 0 # base of acknowledged packets
         EntityA.pktInAir = False
 
         EntityA.backupPkt = list() # a "stream" of the packets 
-        EntityA.lastPktSent = None # this is essentially the sendbase value but instead of increasing by 16
-        # it increases by one each time
+        EntityA.lastPktSent = None 
+
+        
 
     def output(self, message):
         """Called when layer5 wants to introduce new data into the stream"""
@@ -65,15 +65,16 @@ class EntityA(Entity):
         pkt.payload = message 
         pkt.seqnum = self.NextSeqNum
         pkt.acknum = pkt.seqnum + len(message)
-
         pkt.checksum = pkt.seqnum + pkt.acknum + ord(message[0])
       
 
         self.NextSeqNum += len(message) # iterate the seq num
         self.backupPkt.append(pkt)
+        # if there isn't anything in transit, start transit
         if(not self.pktInAir):
-            self.pktInAir = True
-            self.lastPktSent = self.backupPkt.pop(0)
+            
+            self.pktInAir = True # there is something in transit
+            self.lastPktSent = self.backupPkt.pop(0) # current pkt in transit
             self.starttimer(10)
             self.tolayer3(pkt)
         
@@ -86,23 +87,25 @@ class EntityA(Entity):
     def input(self, packet):
         """Called when the network has a packet for this entity"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        # TODO add some code
+        
         # correct next ack is recieved 
+        # it matches the sendBase and it isn't corrupt
         if((packet.acknum == (self.SendBase + len(packet.payload))) == (packet.checksum == (packet.acknum + packet.seqnum + ord(packet.payload[0])))):
             self.stoptimer()
             self.pktInAir = False
             self.SendBase += len(packet.payload) # iterate the sendbase 
             
-            if(0 < len(self.backupPkt)):
+            if(len(self.backupPkt) > 0):
                 self.starttimer(10) # start the timer because there are still packets in needed to go through
                 self.lastPktSent = self.backupPkt.pop(0)
+                self.pktInAir = True
                 self.tolayer3(self.lastPktSent)
-        
+            
+                
         # packet was corrupted, try sending it again
         else:
             
             self.starttimer(10)
-            
             self.tolayer3(self.lastPktSent) # call the last backupPkt
 
 
@@ -114,12 +117,11 @@ class EntityA(Entity):
         """called when your timer has expired"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         #timer timeout
-        #retransmit not yet acked segment with smallest sequence number
         
+        self.pktInAir = True
         self.starttimer(10)
-        self.tolayer3(self.lastPktSent) # call the last backupPkt
-        # self.pktsNotYetAckd = False
-        #start timer
+        self.tolayer3(self.lastPktSent) 
+        
 
     # From here down are functions you may call that interact with the simulator.
     # You should not need to modify these functions.
@@ -152,7 +154,9 @@ class EntityB(Entity):
         super().__init__(sim)
 
          
-        EntityB.lastAck = 0 # the last packet correctly acknowledged
+        EntityB.lastAck = 0 # the last seq correctly acknowledged
+        EntityB.lastPktRcvd = packet.Packet() # the last packet correctly recieved
+        
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
     # Called when layer5 wants to introduce new data into the stream
@@ -166,17 +170,21 @@ class EntityB(Entity):
     # Called when the network has a packet for this entity
     def input(self, packet):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
+        # TODO add some code
+        # check checksum, does the message and the checksum add up to capital Z?
         
-        # check checksum
-        if(packet.seqnum + ord(packet.payload[0]) + packet.acknum == packet.checksum):
+        if((packet.seqnum + ord(packet.payload[0]) + packet.acknum) == packet.checksum):
             # checksum passed
             # if this is the correct next packet
             # otherwise I will do nothing
-            if(self.lastAck == packet.seqnum):
+            if((self.lastAck == packet.seqnum) ):
 
                 
-                
+                self.stoptimer()
                 self.lastAck = packet.acknum # update the last correctly acknowledged packet
+                self.lastPktRcvd = packet
+                
+                self.starttimer(10)
                 self.tolayer5(packet.payload) # give the correct payload to the application
 
                 # send the ack back to EntityA
@@ -198,7 +206,8 @@ class EntityB(Entity):
     # called when your timer has expired
     def timerinterrupt(self):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        pass
+        self.starttimer(10)
+        self.tolayer3(self.lastPktRcvd)
 
     # From here down are functions you may call that interact with the simulator.
     # You should not need to modify these functions.
