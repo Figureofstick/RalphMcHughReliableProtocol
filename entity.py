@@ -49,10 +49,10 @@ class EntityA(Entity):
 
         EntityA.NextSeqNum = 0 # seq number iterable 
         EntityA.SendBase = 0 # base of acknowledged packets
-        EntityA.pktInAir = False
-
+    
         EntityA.backupPkt = list() # a "stream" of the packets 
         EntityA.lastPktSent = None 
+
 
         
 
@@ -71,18 +71,12 @@ class EntityA(Entity):
         self.NextSeqNum += len(message) # iterate the seq num
         self.backupPkt.append(pkt)
         # if there isn't anything in transit, start transit
-        if(not self.pktInAir):
-            
-            self.pktInAir = True # there is something in transit
+        if(self.lastPktSent == None):
             self.lastPktSent = self.backupPkt.pop(0) # current pkt in transit
             self.starttimer(10)
-            self.tolayer3(pkt)
+            self.tolayer3(self.lastPktSent)
         
-        
-
-        
-        
-        
+    
 
     def input(self, packet):
         """Called when the network has a packet for this entity"""
@@ -90,35 +84,20 @@ class EntityA(Entity):
         
         # correct next ack is recieved 
         # it matches the sendBase and it isn't corrupt
-        if((packet.acknum == (self.SendBase + len(packet.payload))) == (packet.checksum == (packet.acknum + packet.seqnum + ord(packet.payload[0])))):
+        if(packet.checksum == (packet.acknum + packet.seqnum + ord(packet.payload[0]))):
             self.stoptimer()
-            self.pktInAir = False
-            self.SendBase += len(packet.payload) # iterate the sendbase 
             
             if(len(self.backupPkt) > 0):
-                self.starttimer(10) # start the timer because there are still packets in needed to go through
+                self.starttimer(10) # start the timer because there are still packets to send
                 self.lastPktSent = self.backupPkt.pop(0)
-                self.pktInAir = True
                 self.tolayer3(self.lastPktSent)
             
-                
-        # packet was corrupted, try sending it again
-        else:
-            
-            self.starttimer(10)
-            self.tolayer3(self.lastPktSent) # call the last backupPkt
-
-
-        
-
         
 
     def timerinterrupt(self):
         """called when your timer has expired"""
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         #timer timeout
-        
-        self.pktInAir = True
         self.starttimer(10)
         self.tolayer3(self.lastPktSent) 
         
@@ -172,17 +151,15 @@ class EntityB(Entity):
         if((packet.seqnum + ord(packet.payload[0]) + packet.acknum) == packet.checksum):
             # is this the next packet I am looking for
             if(self.lastAck == packet.seqnum):
-
+                
+                self.lastPktRcvd = packet
                 self.lastAck += len(packet.payload) 
                 self.tolayer5(packet.payload) 
                 self.tolayer3(packet)
-                    
+            else:  
 
-        
-        else:
-            # negative implies Nack
-            packet.acknum = -1
-            self.tolayer3(packet)
+                self.tolayer3(self.lastPktRcvd)     
+
         
         
 
