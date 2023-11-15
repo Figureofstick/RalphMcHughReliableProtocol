@@ -159,9 +159,6 @@ class EntityB(Entity):
         
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
 
-    # Called when layer5 wants to introduce new data into the stream
-    # For EntityB, this function does not need to be filled in unless
-    # you're doing the extra credit, bidirectional part of the assignment
     def output(self, message):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         # TODO add some code
@@ -170,28 +167,18 @@ class EntityB(Entity):
     # Called when the network has a packet for this entity
     def input(self, packet):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
-        # TODO add some code
-        # check checksum, does the message and the checksum add up to capital Z?
         
+        # first off, is this packet legit
         if((packet.seqnum + ord(packet.payload[0]) + packet.acknum) == packet.checksum):
-            # checksum passed
-            # if this is the correct next packet
-            # otherwise I will do nothing
-            if((self.lastAck == packet.seqnum) ):
+            # is this the next packet I am looking for
+            if(self.lastAck == packet.seqnum):
 
-                
-                
-                self.lastAck = packet.acknum # update the last correctly acknowledged packet
-                self.lastPktRcvd = packet
-                
-                
-                self.tolayer5(packet.payload) # give the correct payload to the application
-
-                # send the ack back to EntityA
+                self.lastAck += len(packet.payload) 
+                self.tolayer5(packet.payload) 
                 self.tolayer3(packet)
-            
-        # that last packet was corrupted
-        # I need it again
+                    
+
+        
         else:
             # negative implies Nack
             packet.acknum = -1
@@ -202,14 +189,9 @@ class EntityB(Entity):
         
         
         
-
-    # called when your timer has expired
     def timerinterrupt(self):
         print(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} called.")
         pass
-
-    # From here down are functions you may call that interact with the simulator.
-    # You should not need to modify these functions.
 
     def starttimer(self, increment):
         """Provided: call this function to start your timer"""
