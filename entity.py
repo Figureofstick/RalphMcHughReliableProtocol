@@ -85,8 +85,8 @@ class EntityA(Entity):
         # correct next ack is recieved 
         # it matches the sendBase and it isn't corrupt
         if(packet.checksum == (packet.acknum + packet.seqnum + ord(packet.payload[0]))):
-            self.stoptimer()
             
+            self.stoptimer()
             if(len(self.backupPkt) > 0):
                 self.starttimer(10) # start the timer because there are still packets to send
                 self.lastPktSent = self.backupPkt.pop(0)
@@ -157,7 +157,6 @@ class EntityB(Entity):
                 self.tolayer5(packet.payload) 
                 self.tolayer3(packet)
             else:  
-
                 self.tolayer3(self.lastPktRcvd)     
 
         
